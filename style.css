@@ -168,41 +168,53 @@ a { color: inherit; text-decoration: none; }
 }
 .nav__cta:hover { background: var(--bone); color: var(--ink); }
 
-/* ---------- Hero — full-bleed orange flood ---------- */
+/* ---------- Hero — orange flood, seeds rain into the bag ---------- */
 .hero { position: relative; }
 .hero__pin {
   height: 100vh;
   height: 100svh;
   position: relative;
   overflow: hidden;
-  display: grid;
-  align-items: end;
-  /* Background must live INSIDE the pinned element: GSAP's pin creates a
-     stacking context that would otherwise isolate the pack blend from it. */
-  background: var(--orange);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  background:
+    radial-gradient(120% 80% at 50% 0%, #C55A22 0%, var(--orange) 55%, #8F3E14 100%);
 }
-.hero__media { position: absolute; inset: 0; }
-.hero__img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center 32%;
-  transform-origin: 50% 32%;
-  will-change: transform;
-}
-.hero__vignette {
+.hero__seeds {
   position: absolute;
   inset: 0;
-  background:
-    linear-gradient(to bottom, rgba(12, 11, 9, 0.5) 0%, transparent 22%),
-    linear-gradient(to top, rgba(12, 11, 9, 0.66) 0%, transparent 45%),
-    radial-gradient(120% 90% at 50% 30%, transparent 55%, rgba(12, 11, 9, 0.32) 100%);
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none;
 }
 .hero__copy {
   position: relative;
   z-index: 2;
-  padding: 0 var(--pad) clamp(48px, 9vh, 110px);
-  max-width: 1100px;
+  padding: clamp(90px, 14vh, 140px) var(--pad) 0;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.hero__bag {
+  position: relative;
+  z-index: 2;
+  width: min(460px, 62vw);
+  aspect-ratio: 4 / 3;
+  margin-top: clamp(18px, 3vh, 36px);
+  border-radius: 24px 24px 0 0;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 -20px 70px rgba(12, 11, 9, 0.35);
+}
+.hero__bag img {
+  width: 100%;
+  height: 118%;
+  object-fit: cover;
+  object-position: center 18%;
 }
 .hero__kicker {
   font-size: 13px;
@@ -216,12 +228,11 @@ a { color: inherit; text-decoration: none; }
   font-family: var(--display);
   font-weight: 400;
   font-variation-settings: "opsz" 144, "SOFT" 30;
-  font-size: clamp(56px, 9.6vw, 150px);
+  font-size: clamp(52px, 8.4vw, 128px);
   line-height: 0.94;
   letter-spacing: -0.025em;
   color: var(--bone);
-  margin-bottom: 34px;
-  text-shadow: 0 2px 40px rgba(12, 11, 9, 0.35);
+  margin-bottom: 28px;
 }
 .hero__word { display: inline-block; }
 .hero__word--accent { color: var(--badge); font-style: italic; font-variation-settings: "opsz" 144, "SOFT" 60, "WONK" 1; }

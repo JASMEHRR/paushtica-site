@@ -119,37 +119,6 @@
   document.querySelectorAll(".hero__word").forEach(function (w) { splitChars(w, "hero__char"); });
   document.querySelectorAll("[data-split]").forEach(function (t) { splitChars(t, "char"); });
 
-  /* ---------- Pack tinting ----------
-     The listing photos are packs on pure white. Baking a multiply
-     composite into a canvas ONCE gives the color-flood poster look with
-     zero runtime blend cost (live mix-blend-mode froze Chrome's renderer).
-     Falls back to CSS blending if the canvas is tainted. */
-  function tintify(el, color) {
-    var im = new Image();
-    im.crossOrigin = "anonymous";
-    im.onload = function () {
-      var cv = document.createElement("canvas");
-      cv.width = im.naturalWidth;
-      cv.height = im.naturalHeight;
-      var x = cv.getContext("2d");
-      x.fillStyle = color;
-      x.fillRect(0, 0, cv.width, cv.height);
-      x.globalCompositeOperation = "multiply";
-      x.drawImage(im, 0, 0);
-      try {
-        el.src = cv.toDataURL("image/jpeg", 0.92);
-      } catch (e) {
-        el.style.mixBlendMode = "multiply";
-      }
-    };
-    im.onerror = function () { el.style.mixBlendMode = "multiply"; };
-    im.src = el.src;
-  }
-  /* Hero only — poster and outro packs stay untinted inside white
-     encasings so the product is always clearly visible. */
-  var hImg = document.querySelector(".hero__img");
-  if (hImg) { tintify(hImg, "#B44A17"); }
-
   /* ---------- Film grain: tiny pre-rendered noise tile ---------- */
   var grainEl = document.querySelector(".grain");
   if (grainEl) {
@@ -190,10 +159,92 @@
       duration: 0.9, stagger: 0.12, ease: "power3.out"
     }, "-=0.65");
 
-  /* ---------- Hero: full-bleed macro pull + copy scatter ---------- */
-  var heroImg = document.querySelector(".hero__img");
-  if (heroImg) {
-    gsap.set(heroImg, { scale: 2.6, yPercent: 5 });
+  /* ---------- Hero signature: seeds rain into the bag on scroll ----------
+     Canvas particles (drawn seed shapes — warm ochres, creams, greens)
+     idle-drift on load, then stream into the bag's mouth as the hero
+     pins and the user scrolls. Transform/canvas only — no filters. */
+  var heroCanvas = document.getElementById("heroSeeds");
+  var heroBag = document.getElementById("heroBag");
+  var heroPinEl = document.querySelector(".hero__pin");
+  if (heroCanvas && heroBag && heroPinEl) {
+    var hctx = heroCanvas.getContext("2d");
+    var SEED_COLORS = ["#EFE3C8", "#E4C98F", "#C99B5F", "#8A5A2B", "#5C3A22", "#3E5C3A", "#E8D53A"];
+    var parts = [];
+    var heroProgress = 0;
+    var CW = 0, CH = 0;
+
+    var sizeCanvas = function () {
+      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      CW = heroPinEl.clientWidth;
+      CH = heroPinEl.clientHeight;
+      heroCanvas.width = CW * dpr;
+      heroCanvas.height = CH * dpr;
+      hctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+    var initParts = function () {
+      parts = [];
+      var n = CW < 700 ? 70 : 120;
+      for (var i = 0; i < n; i++) {
+        parts.push({
+          sx: Math.random(),                       // scattered start (fractions)
+          sy: Math.random() * 0.62,
+          delay: Math.random() * 0.5,              // streaming offset
+          size: 3.5 + Math.random() * 5,
+          aspect: 0.42 + Math.random() * 0.3,
+          rot: Math.random() * Math.PI * 2,
+          spin: (Math.random() - 0.5) * 3,
+          ox: (Math.random() - 0.5),               // spread at the bag mouth
+          bob: Math.random() * Math.PI * 2,
+          color: SEED_COLORS[(Math.random() * SEED_COLORS.length) | 0]
+        });
+      }
+    };
+    sizeCanvas();
+    initParts();
+    window.addEventListener("resize", function () { sizeCanvas(); initParts(); });
+
+    var drawSeeds = function (now) {
+      hctx.clearRect(0, 0, CW, CH);
+      var bagRect = heroBag.getBoundingClientRect();
+      var pinRect = heroPinEl.getBoundingClientRect();
+      var mouthX = bagRect.left - pinRect.left + bagRect.width / 2;
+      var mouthY = bagRect.top - pinRect.top + 6;
+      var mouthW = bagRect.width * 0.55;
+
+      for (var i = 0; i < parts.length; i++) {
+        var p = parts[i];
+        var lp = (heroProgress - p.delay) / (1 - p.delay);
+        lp = lp < 0 ? 0 : (lp > 1 ? 1 : lp);
+        var e = lp * lp * (3 - 2 * lp); // smoothstep fall
+
+        var x0 = p.sx * CW;
+        var y0 = p.sy * CH * 0.75;
+        var tx = mouthX + p.ox * mouthW;
+        var ty = mouthY;
+        var cx = x0 + (tx - x0) * 0.5;
+        var cy = Math.min(y0 - 40, ty - 180); // arc control above the bag
+
+        var x = (1 - e) * (1 - e) * x0 + 2 * (1 - e) * e * cx + e * e * tx;
+        var y = (1 - e) * (1 - e) * y0 + 2 * (1 - e) * e * cy + e * e * ty;
+        if (heroProgress < 0.02) { y += Math.sin(now / 850 + p.bob) * 7; }
+
+        var alpha = e > 0.9 ? (1 - e) * 10 : 1; // vanish into the bag
+        if (alpha <= 0.01) { continue; }
+
+        hctx.save();
+        hctx.translate(x, y);
+        hctx.rotate(p.rot + e * p.spin);
+        hctx.globalAlpha = alpha * 0.95;
+        hctx.fillStyle = p.color;
+        hctx.beginPath();
+        hctx.ellipse(0, 0, p.size, p.size * p.aspect, 0, 0, Math.PI * 2);
+        hctx.fill();
+        hctx.restore();
+      }
+      requestAnimationFrame(drawSeeds);
+    };
+    requestAnimationFrame(drawSeeds);
+
     gsap.timeline({
       scrollTrigger: {
         trigger: ".hero__pin",
@@ -201,12 +252,12 @@
         end: "+=140%",
         scrub: 0.6,
         pin: true,
-        anticipatePin: 1
+        anticipatePin: 1,
+        onUpdate: function (self) { heroProgress = self.progress; }
       }
     })
-      .to(heroImg, { scale: 1, yPercent: 0, ease: "none" }, 0)
-      .to(".hero__copy", { yPercent: -18, opacity: 0.25, ease: "none" }, 0.55)
-      .to(".hero__vignette", { opacity: 0.85, ease: "none" }, 0.5);
+      .to(".hero__copy", { yPercent: -14, opacity: 0.2, ease: "none" }, 0.6)
+      .to(".hero__bag", { scale: 1.04, ease: "none" }, 0.5);
   }
 
   /* ---------- Product takeovers ---------- */
